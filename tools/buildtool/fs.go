@@ -37,20 +37,49 @@ func CopyFile(src string, dst string) error {
 		return err
 	}
 
-	output, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+	output, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".tmp-*")
 	if err != nil {
 		return err
 	}
+	outputPath := output.Name()
+	keepOutput := false
+	defer func() {
+		if !keepOutput {
+			_ = os.Remove(outputPath)
+		}
+	}()
+	if err := output.Chmod(mode); err != nil {
+		_ = output.Close()
+		return err
+	}
 	_, copyErr := io.Copy(output, input)
+	syncErr := output.Sync()
 	closeErr := output.Close()
 	if copyErr != nil {
 		return copyErr
 	}
+	if syncErr != nil {
+		return syncErr
+	}
 	if closeErr != nil {
 		return closeErr
 	}
-	if err := os.Chmod(dst, mode); err != nil {
+	if err := os.Chmod(outputPath, mode); err != nil {
 		return err
+	}
+	if err := replaceFile(outputPath, dst); err != nil {
+		return err
+	}
+	keepOutput = true
+	return nil
+}
+
+func replaceFile(src string, dst string) error {
+	if err := os.Rename(src, dst); err != nil {
+		if removeErr := os.Remove(dst); removeErr != nil && !os.IsNotExist(removeErr) {
+			return err
+		}
+		return os.Rename(src, dst)
 	}
 	return nil
 }

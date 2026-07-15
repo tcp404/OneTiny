@@ -3,7 +3,6 @@ package updater
 import (
 	"fmt"
 	"runtime"
-	"slices"
 	"strings"
 )
 
@@ -28,21 +27,8 @@ func normalizeArch(arch string) string {
 func AssetName(channel Channel, platform Platform) (string, error) {
 	osName := strings.ToLower(strings.TrimSpace(platform.OS))
 	arch := normalizeArch(platform.Arch)
-	if !isSupportedArch(arch) {
-		return "", fmt.Errorf("%w: %s/%s", ErrUnsupportedPlatform, osName, arch)
-	}
-
-	switch channel {
-	case ChannelCLI:
-		if !isSupportedOS(osName, "linux", "windows", "darwin") {
-			return "", fmt.Errorf("%w: %s/%s", ErrUnsupportedPlatform, osName, arch)
-		}
-	case ChannelGUI:
-		if !isSupportedOS(osName, "windows", "darwin") {
-			return "", fmt.Errorf("%w: %s/%s", ErrUnsupportedPlatform, osName, arch)
-		}
-	default:
-		return "", fmt.Errorf("%w: %s", ErrUnsupportedPlatform, channel)
+	if !isReleasedAsset(channel, osName, arch) {
+		return "", fmt.Errorf("%w: %s %s/%s", ErrUnsupportedPlatform, channel, osName, arch)
 	}
 
 	return fmt.Sprintf("onetiny-%s-%s-%s.zip", channel, osName, arch), nil
@@ -65,10 +51,22 @@ func FindAssetByName(release Release, name string) (Asset, error) {
 	return Asset{}, fmt.Errorf("%w: %s", ErrAssetNotFound, name)
 }
 
-func isSupportedArch(arch string) bool {
-	return arch == "x64" || arch == "arm64"
-}
-
-func isSupportedOS(goos string, supported ...string) bool {
-	return slices.Contains(supported, goos)
+func isReleasedAsset(channel Channel, goos, arch string) bool {
+	switch channel {
+	case ChannelCLI:
+		switch goos {
+		case "linux", "windows":
+			return arch == "x64"
+		case "darwin":
+			return arch == "x64" || arch == "arm64"
+		}
+	case ChannelGUI:
+		switch goos {
+		case "windows":
+			return arch == "x64"
+		case "darwin":
+			return arch == "arm64"
+		}
+	}
+	return false
 }

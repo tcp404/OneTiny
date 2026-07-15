@@ -260,3 +260,5 @@ build/
 dist/
 docs/superpowers/
 .worktrees/
+.codex/
+.claude/

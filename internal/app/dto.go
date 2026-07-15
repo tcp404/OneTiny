@@ -68,3 +68,20 @@ type LogEntryDTO struct {
 	Status   int       `json:"status"`
 	Result   string    `json:"result"`
 }
+
+type UpdateStatusDTO struct {
+	CurrentVersion string `json:"currentVersion"`
+	LatestVersion  string `json:"latestVersion"`
+	Available      bool   `json:"available"`
+	State          string `json:"state"`
+	Message        string `json:"message"`
+	ReleaseURL     string `json:"releaseURL"`
+	DownloadedPath string `json:"downloadedPath"`
+	LogPath        string `json:"logPath"`
+}
+
+type UpdateInstallDTO struct {
+	Started bool   `json:"started"`
+	LogPath string `json:"logPath"`
+	Message string `json:"message"`
+}

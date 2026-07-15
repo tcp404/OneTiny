@@ -27,20 +27,32 @@ func CopyFile(src string, dst string) error {
 	}
 	defer input.Close()
 
+	info, err := input.Stat()
+	if err != nil {
+		return err
+	}
+	mode := info.Mode().Perm()
+
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 
-	output, err := os.Create(dst)
+	output, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
 	if err != nil {
 		return err
 	}
-	defer output.Close()
-
-	if _, err := io.Copy(output, input); err != nil {
+	_, copyErr := io.Copy(output, input)
+	closeErr := output.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if err := os.Chmod(dst, mode); err != nil {
 		return err
 	}
-	return output.Close()
+	return nil
 }
 
 func VerifyPath(path string, kind string) error {

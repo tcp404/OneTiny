@@ -16,13 +16,17 @@ import (
 	"github.com/tcp404/OneTiny/internal/runtime"
 	"github.com/tcp404/OneTiny/internal/security"
 	"github.com/tcp404/OneTiny/internal/server"
+	"github.com/tcp404/OneTiny/internal/updater"
 )
 
 type Dependencies struct {
-	ConfigStore *config.Store
-	Runtime     *runtime.Runtime
-	Manager     *server.Manager
-	Logger      *accesslog.Logger
+	ConfigStore       *config.Store
+	Runtime           *runtime.Runtime
+	Manager           *server.Manager
+	Logger            *accesslog.Logger
+	Updater           updateBackend
+	CurrentExecutable func() (string, error)
+	StartUpdateHelper func(helperPath string, plan updater.InstallPlan) error
 }
 
 type Service struct {
@@ -34,6 +38,14 @@ type Service struct {
 	lastErr             string
 	portRestartRequired bool
 	pendingPort         *int
+	updater             updateBackend
+	currentExecutable   func() (string, error)
+	startUpdateHelper   func(helperPath string, plan updater.InstallPlan) error
+	updateStatus        UpdateStatusDTO
+	updateCheck         updater.CheckResult
+	hasUpdateCheck      bool
+	updateDownload      updater.DownloadResult
+	updateStage         updater.StageResult
 }
 
 func NewService(deps Dependencies) *Service {
@@ -48,11 +60,26 @@ func NewService(deps Dependencies) *Service {
 			AccessLog: logger,
 		})
 	}
+	updateBackend := deps.Updater
+	if updateBackend == nil {
+		updateBackend = updater.Service{}
+	}
+	currentExecutable := deps.CurrentExecutable
+	if currentExecutable == nil {
+		currentExecutable = os.Executable
+	}
+	startUpdateHelper := deps.StartUpdateHelper
+	if startUpdateHelper == nil {
+		startUpdateHelper = updater.StartHelper
+	}
 	return &Service{
-		configStore: deps.ConfigStore,
-		runtime:     deps.Runtime,
-		manager:     manager,
-		logger:      logger,
+		configStore:       deps.ConfigStore,
+		runtime:           deps.Runtime,
+		manager:           manager,
+		logger:            logger,
+		updater:           updateBackend,
+		currentExecutable: currentExecutable,
+		startUpdateHelper: startUpdateHelper,
 	}
 }
 

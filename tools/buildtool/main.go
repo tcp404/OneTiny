@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -24,12 +25,16 @@ func run(args []string) error {
 	switch args[0] {
 	case "metadata":
 		return runMetadata(args[1:])
+	case "current-version":
+		return runCurrentVersion(args[1:])
 	case "validate-version":
 		return runValidateVersion(args[1:])
 	case "ensure-dir":
 		return runEnsureDir(args[1:])
 	case "copy-file":
 		return runCopyFile(args[1:])
+	case "render-mac-info":
+		return runRenderMacInfo(args[1:])
 	case "verify":
 		return runVerify(args[1:])
 	case "require-target-os":
@@ -47,12 +52,26 @@ func run(args []string) error {
 	}
 }
 
+func runCurrentVersion(args []string) error {
+	fs := flag.NewFlagSet("current-version", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	version, err := DefaultVersion()
+	if err != nil {
+		return err
+	}
+	fmt.Println(version)
+	return nil
+}
+
 func runMetadata(args []string) error {
 	fs := flag.NewFlagSet("metadata", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	targetValue := fs.String("target", "", "target in GOOS-GOARCH format")
 	kindValue := fs.String("kind", "cli", "artifact kind: cli or gui")
-	version := fs.String("version", "v0.6.0", "version value for ldflags metadata")
+	version := fs.String("version", "", "version value for ldflags metadata")
 	field := fs.String("field", "", "single field to print")
 	format := fs.String("format", "env", "output format: env or json")
 	if err := fs.Parse(args); err != nil {
@@ -71,6 +90,10 @@ func runMetadata(args []string) error {
 	if err != nil {
 		return err
 	}
+	resolvedVersion, err := resolveVersion(*version)
+	if err != nil {
+		return err
+	}
 
 	values := map[string]string{
 		"target":       target.Name(),
@@ -84,7 +107,7 @@ func runMetadata(args []string) error {
 		"binary-name":  spec.BinaryName,
 		"binary-path":  spec.BinaryPath,
 		"mac-app-path": spec.MacAppPath,
-		"ldflags":      BuildLdflags(kind, target, *version),
+		"ldflags":      BuildLdflags(kind, target, resolvedVersion),
 	}
 
 	if *field != "" {
@@ -128,6 +151,14 @@ func runValidateVersion(args []string) error {
 	return ValidateVersion(*version)
 }
 
+func resolveVersion(version string) (string, error) {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return DefaultVersion()
+	}
+	return version, nil
+}
+
 func runEnsureDir(args []string) error {
 	fs := flag.NewFlagSet("ensure-dir", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -151,6 +182,21 @@ func runCopyFile(args []string) error {
 		return errors.New("copy-file requires --src and --dst")
 	}
 	return CopyFile(*src, *dst)
+}
+
+func runRenderMacInfo(args []string) error {
+	fs := flag.NewFlagSet("render-mac-info", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	src := fs.String("src", "", "source Info.plist template")
+	dst := fs.String("dst", "", "destination Info.plist")
+	version := fs.String("version", "", "release version")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *src == "" || *dst == "" || *version == "" {
+		return errors.New("render-mac-info requires --src, --dst, and --version")
+	}
+	return RenderMacInfoPlist(*src, *dst, *version)
 }
 
 func runVerify(args []string) error {
@@ -190,7 +236,7 @@ func runGoBuild(args []string) error {
 	fs.SetOutput(os.Stderr)
 	targetValue := fs.String("target", "", "target in GOOS-GOARCH format")
 	kindValue := fs.String("kind", "", "artifact kind: cli or gui")
-	version := fs.String("version", "v0.6.0", "version value for ldflags")
+	version := fs.String("version", "", "version value for ldflags")
 	outputPath := fs.String("output", "", "output binary path")
 	packagePath := fs.String("package", "", "Go package path")
 	cgoEnabled := fs.String("cgo-enabled", "", "optional CGO_ENABLED value")
@@ -206,11 +252,15 @@ func runGoBuild(args []string) error {
 	if err != nil {
 		return err
 	}
+	resolvedVersion, err := resolveVersion(*version)
+	if err != nil {
+		return err
+	}
 
 	return RunGoBuild(GoBuildOptions{
 		Kind:       kind,
 		Target:     target,
-		Version:    *version,
+		Version:    resolvedVersion,
 		OutputPath: *outputPath,
 		Package:    *packagePath,
 		CGOEnabled: *cgoEnabled,

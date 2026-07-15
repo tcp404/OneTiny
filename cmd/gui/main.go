@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/tcp404/OneTiny/internal/accesslog"
 	"github.com/tcp404/OneTiny/internal/app"
@@ -10,9 +11,17 @@ import (
 	"github.com/tcp404/OneTiny/internal/gui/webassets"
 	"github.com/tcp404/OneTiny/internal/runtime"
 	"github.com/tcp404/OneTiny/internal/server"
+	"github.com/tcp404/OneTiny/internal/updater"
 )
 
 func main() {
+	if updater.IsHelperInvocation(os.Args[1:]) {
+		if err := updater.RunHelperFromArgs(os.Args[1:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	configPath, err := config.DefaultPath()
 	if err != nil {
 		log.Fatal(err)

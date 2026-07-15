@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestValidateVersionAcceptsReleaseTags(t *testing.T) {
 	tests := []string{
@@ -33,5 +37,21 @@ func TestValidateVersionRejectsAmbiguousVersions(t *testing.T) {
 				t.Fatalf("ValidateVersion(%q) returned nil error", version)
 			}
 		})
+	}
+}
+
+func TestDefaultVersionReadsReleasePleaseManifest(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".release-please-manifest.json"), []byte(`{".":"0.11.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	got, err := DefaultVersion()
+	if err != nil {
+		t.Fatalf("DefaultVersion returned error: %v", err)
+	}
+	if got != "v0.11.0" {
+		t.Fatalf("DefaultVersion = %q, want v0.11.0", got)
 	}
 }

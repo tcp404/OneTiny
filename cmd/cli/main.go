@@ -12,11 +12,19 @@ import (
 	"github.com/tcp404/OneTiny/internal/config"
 	"github.com/tcp404/OneTiny/internal/runtime"
 	"github.com/tcp404/OneTiny/internal/server"
+	"github.com/tcp404/OneTiny/internal/updater"
 
 	"github.com/fatih/color"
 )
 
 func main() {
+	if updater.IsHelperInvocation(os.Args[1:]) {
+		if err := updater.RunHelperFromArgs(os.Args[1:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	var err error
 	defer func() {
 		if err != nil {

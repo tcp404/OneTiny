@@ -45,6 +45,11 @@ func Run(assets embed.FS, deps Dependencies) error {
 
 	window = app.Window.NewWithOptions(newMainWindowOptions())
 	service.setDialogAdapter(NewWailsDialogAdapter(app, window, deps.ConfigDir))
+	service.setQuitForUpdate(func() {
+		quitting.Store(true)
+		service.shutdown()
+		app.Quit()
+	})
 
 	window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
 		if quitting.Load() {

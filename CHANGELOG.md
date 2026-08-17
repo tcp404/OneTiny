@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/tcp404/OneTiny/compare/v0.11.0...v0.12.0) (2026-08-17)
+
+
+### Features
+
+* **updater:** add GitHub Releases auto update for CLI and GUI ([#28](https://github.com/tcp404/OneTiny/issues/28)) ([6464783](https://github.com/tcp404/OneTiny/commit/64647839c9ff2681983ffd922deb9e719517b669))
+
+
+### Documentation
+
+* **build:** update just recipe names after namespacing ([#26](https://github.com/tcp404/OneTiny/issues/26)) ([9ff4a50](https://github.com/tcp404/OneTiny/commit/9ff4a507a7961dba1899923d87da8e191a974315))
+
 ## [0.11.0](https://github.com/tcp404/OneTiny/compare/v0.10.1...v0.11.0) (2026-07-09)
 
 

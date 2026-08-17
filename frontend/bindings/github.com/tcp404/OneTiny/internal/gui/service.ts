@@ -9,6 +9,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as app$0 from "../app/models.js";
 
+export function CheckUpdate(): $CancellablePromise<app$0.UpdateStatusDTO> {
+    return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.CheckUpdate").then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
 export function ChooseDirectory(current: string): $CancellablePromise<string> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.ChooseDirectory", current);
 }
@@ -17,19 +23,37 @@ export function ClearLogs(): $CancellablePromise<void> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.ClearLogs");
 }
 
+export function DownloadUpdate(): $CancellablePromise<app$0.UpdateStatusDTO> {
+    return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.DownloadUpdate").then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
 export function ExportLogs(filter: app$0.LogFilterDTO): $CancellablePromise<string> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.ExportLogs", filter);
 }
 
 export function GetLogs(filter: app$0.LogFilterDTO): $CancellablePromise<app$0.LogEntryDTO[]> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.GetLogs", filter).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
 export function GetStatus(): $CancellablePromise<app$0.StatusDTO> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.GetStatus").then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
+    });
+}
+
+export function GetUpdateStatus(): $CancellablePromise<app$0.UpdateStatusDTO> {
+    return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.GetUpdateStatus").then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+export function InstallUpdate(): $CancellablePromise<app$0.UpdateInstallDTO> {
+    return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.InstallUpdate").then(($result: any) => {
+        return $$createType4($result);
     });
 }
 
@@ -43,29 +67,31 @@ export function OpenShareAddress(): $CancellablePromise<void> {
 
 export function SetCredentials(patch: app$0.CredentialPatchDTO): $CancellablePromise<app$0.StatusDTO> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.SetCredentials", patch).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
 export function StartSharing(): $CancellablePromise<app$0.StatusDTO> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.StartSharing").then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
 export function StopSharing(): $CancellablePromise<app$0.StatusDTO> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.StopSharing").then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
 export function UpdateConfig(patch: app$0.ConfigPatchDTO): $CancellablePromise<app$0.StatusDTO> {
     return $Call.ByName("github.com/tcp404/OneTiny/internal/gui.Service.UpdateConfig", patch).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = app$0.LogEntryDTO.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = app$0.StatusDTO.createFrom;
+const $$createType0 = app$0.UpdateStatusDTO.createFrom;
+const $$createType1 = app$0.LogEntryDTO.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = app$0.StatusDTO.createFrom;
+const $$createType4 = app$0.UpdateInstallDTO.createFrom;

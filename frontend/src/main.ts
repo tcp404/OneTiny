@@ -1,4 +1,5 @@
 import "./styles.css";
+import { appVersionLabel, updatePanelClass } from "./updatePanel";
 import type {
   AppMode,
   ConfigDTO,
@@ -8,6 +9,8 @@ import type {
   OneTinyService,
   StatusDTO,
   TabKey,
+  UpdateInstallDTO,
+  UpdateStatusDTO,
 } from "./types";
 
 type GeneratedServiceModule = typeof import("../bindings/github.com/tcp404/OneTiny/internal/gui/service.js");
@@ -20,7 +23,6 @@ type CredentialDialogState = {
   error: string;
 };
 
-const appVersion = "0.1.0";
 const appRoot = document.querySelector<HTMLDivElement>("#app");
 
 if (!appRoot) {
@@ -49,6 +51,17 @@ const mockStatus: StatusDTO = {
   lastError: "",
 };
 
+const mockUpdateStatus: UpdateStatusDTO = {
+  currentVersion: "dev",
+  latestVersion: "",
+  available: false,
+  state: "idle",
+  message: "",
+  releaseURL: "",
+  downloadedPath: "",
+  logPath: "",
+};
+
 const logEventOptions = [
   { value: "", label: "全部" },
   { value: "access", label: "access" },
@@ -67,10 +80,14 @@ let activeTab: TabKey = "panel";
 let notice = "";
 let usingMock = false;
 let credentialDialog: CredentialDialogState | null = null;
+let updateStatus: UpdateStatusDTO = mockUpdateStatus;
+let updateCheckStarted = false;
 
 const service = createService();
 
-void refresh();
+void refresh().finally(() => {
+  void checkUpdateOnStartup();
+});
 
 function createService(): OneTinyService {
   const loadService = () => import("../bindings/github.com/tcp404/OneTiny/internal/gui/service.js");
@@ -101,6 +118,10 @@ function createService(): OneTinyService {
     ExportLogs: (filter) => call("ExportLogs", [filter], (generated) => generated.ExportLogs(filter)),
     OpenConfigDir: () => call("OpenConfigDir", [], (generated) => generated.OpenConfigDir()),
     OpenShareAddress: () => call("OpenShareAddress", [], (generated) => generated.OpenShareAddress()),
+    GetUpdateStatus: () => call("GetUpdateStatus", [], (generated) => generated.GetUpdateStatus()),
+    CheckUpdate: () => call("CheckUpdate", [], (generated) => generated.CheckUpdate()),
+    DownloadUpdate: () => call("DownloadUpdate", [], (generated) => generated.DownloadUpdate()),
+    InstallUpdate: () => call("InstallUpdate", [], (generated) => generated.InstallUpdate()),
   };
 }
 
@@ -174,6 +195,34 @@ async function mockCall<T>(method: string, args: unknown[]): Promise<T> {
       return undefined as T;
     case "OpenShareAddress":
       return undefined as T;
+    case "GetUpdateStatus":
+      return updateStatus as T;
+    case "CheckUpdate":
+      updateStatus = {
+        ...updateStatus,
+        latestVersion: "v0.12.0",
+        available: true,
+        state: "available",
+        message: "发现新版本: v0.12.0",
+        releaseURL: "https://github.com/tcp404/OneTiny/releases/tag/v0.12.0",
+      };
+      return updateStatus as T;
+    case "DownloadUpdate":
+      updateStatus = {
+        ...updateStatus,
+        state: "downloaded",
+        message: "更新包已下载",
+        downloadedPath: "/tmp/onetiny-update/onetiny-gui-darwin-arm64.zip",
+      };
+      return updateStatus as T;
+    case "InstallUpdate":
+      updateStatus = {
+        ...updateStatus,
+        state: "installing",
+        message: "更新安装已启动",
+        logPath: "/tmp/onetiny-update.log",
+      };
+      return { started: true, logPath: updateStatus.logPath, message: updateStatus.message } as UpdateInstallDTO as T;
     case "SetCredentials": {
       const patch = args[0] as {
         username: string;
@@ -236,6 +285,7 @@ function applyConfigPatch(config: ConfigDTO, patch: ConfigPatchDTO): ConfigDTO {
 async function refresh(): Promise<void> {
   try {
     status = await service.GetStatus();
+    updateStatus = await service.GetUpdateStatus();
     if (activeTab === "logs") {
       logs = await service.GetLogs(logFilter);
     }
@@ -244,6 +294,36 @@ async function refresh(): Promise<void> {
     notice = errorMessage(error);
   }
   render();
+}
+
+async function checkUpdateOnStartup(): Promise<void> {
+  if (updateCheckStarted) {
+    return;
+  }
+  updateCheckStarted = true;
+  updateStatus = {
+    ...updateStatus,
+    state: "checking",
+    message: updateStateLabel("checking"),
+  };
+  if (activeTab === "about") {
+    render();
+  }
+  try {
+    updateStatus = await service.CheckUpdate();
+    if (activeTab === "about") {
+      render();
+    }
+  } catch (error) {
+    updateStatus = {
+      ...updateStatus,
+      state: "error",
+      message: errorMessage(error),
+    };
+    if (activeTab === "about") {
+      render();
+    }
+  }
 }
 
 function render(): void {
@@ -431,7 +511,7 @@ function renderAboutTab(): string {
     <div class="about-panel">
       <dl class="about">
         <dt>版本</dt>
-        <dd>OneTiny GUI ${escapeHtml(appVersion)}</dd>
+        <dd>OneTiny GUI ${escapeHtml(appVersionLabel(updateStatus.currentVersion))}</dd>
         <dt>模式</dt>
         <dd>${escapeHtml(modeLabel(currentMode()))}</dd>
         <dt>配置文件</dt>
@@ -439,6 +519,19 @@ function renderAboutTab(): string {
         <dt>访问日志</dt>
         <dd>${escapeHtml(status.accessLogPath || "-")}</dd>
       </dl>
+      <section class="${updatePanelClass(updateStatus)}" aria-label="软件更新">
+        <div class="update-copy">
+          <strong>软件更新</strong>
+          <span>${escapeHtml(updateStatus.message || updateStateLabel(updateStatus.state))}</span>
+          ${updateStatus.downloadedPath ? `<code>${escapeHtml(updateStatus.downloadedPath)}</code>` : ""}
+          ${updateStatus.logPath ? `<code>${escapeHtml(updateStatus.logPath)}</code>` : ""}
+        </div>
+        <div class="update-actions">
+          <button type="button" data-action="check-update" ${isUpdateBusy() ? "disabled" : ""}>检查更新</button>
+          <button type="button" data-action="download-update" ${canDownloadUpdate() ? "" : "disabled"}>下载更新</button>
+          <button class="primary" type="button" data-action="install-update" ${canInstallUpdate() ? "" : "disabled"}>安装并重启</button>
+        </div>
+      </section>
       <button data-action="open-config">打开配置目录</button>
     </div>
   `;
@@ -609,6 +702,55 @@ function bindEvents(): void {
       render();
     });
   });
+  app.querySelector<HTMLButtonElement>('[data-action="check-update"]')?.addEventListener("click", () => {
+    runUpdateAction(async () => {
+      updateStatus = {
+        ...updateStatus,
+        state: "checking",
+        message: updateStateLabel("checking"),
+      };
+      render();
+      updateStatus = await service.CheckUpdate();
+      notice = runtimeModeMessage();
+      render();
+    });
+  });
+  app.querySelector<HTMLButtonElement>('[data-action="download-update"]')?.addEventListener("click", () => {
+    runUpdateAction(async () => {
+      updateStatus = {
+        ...updateStatus,
+        state: "downloading",
+        message: updateStateLabel("downloading"),
+      };
+      render();
+      updateStatus = await service.DownloadUpdate();
+      notice = runtimeModeMessage();
+      render();
+    });
+  });
+  app.querySelector<HTMLButtonElement>('[data-action="install-update"]')?.addEventListener("click", () => {
+    const confirmed = window.confirm("安装更新会退出 OneTiny 并停止共享服务，是否继续？");
+    if (!confirmed) {
+      return;
+    }
+    runUpdateAction(async () => {
+      updateStatus = {
+        ...updateStatus,
+        state: "installing",
+        message: updateStateLabel("installing"),
+      };
+      render();
+      const result = await service.InstallUpdate();
+      updateStatus = {
+        ...updateStatus,
+        state: "installing",
+        message: result.message || updateStateLabel("installing"),
+        logPath: result.logPath,
+      };
+      notice = runtimeModeMessage();
+      render();
+    });
+  });
   app.querySelector<HTMLFormElement>(".log-filters")?.addEventListener("submit", (event) => {
     event.preventDefault();
     runAction(async () => {
@@ -664,6 +806,30 @@ function runAction(action: () => Promise<void>): void {
     notice = errorMessage(error);
     render();
   });
+}
+
+function runUpdateAction(action: () => Promise<void>): void {
+  void action().catch((error) => {
+    void handleUpdateActionError(error);
+  });
+}
+
+async function handleUpdateActionError(error: unknown): Promise<void> {
+  const message = errorMessage(error);
+  notice = runtimeModeMessage();
+  try {
+    updateStatus = await service.GetUpdateStatus();
+    if (!updateStatus.message) {
+      updateStatus = { ...updateStatus, message };
+    }
+  } catch {
+    updateStatus = {
+      ...updateStatus,
+      state: "error",
+      message,
+    };
+  }
+  render();
 }
 
 async function handleSecureToggle(enabled: boolean): Promise<void> {
@@ -882,6 +1048,41 @@ function currentMode(): AppMode {
 
 function modeLabel(mode: AppMode): string {
   return mode === "browser-preview" ? "浏览器预览模式" : "Wails 桌面运行时";
+}
+
+function updateStateLabel(state: string): string {
+  switch (state) {
+    case "checking":
+      return "正在检查更新";
+    case "available":
+      return "有新版本可用";
+    case "downloading":
+      return "正在下载更新";
+    case "downloaded":
+      return "更新包已下载";
+    case "installing":
+      return "更新安装已启动";
+    case "current":
+      return "当前已是最新版本";
+    case "unknown":
+      return "无法判断更新状态";
+    case "error":
+      return "检查更新失败";
+    default:
+      return "尚未检查";
+  }
+}
+
+function isUpdateBusy(): boolean {
+  return updateStatus.state === "checking" || updateStatus.state === "downloading" || updateStatus.state === "installing";
+}
+
+function canDownloadUpdate(): boolean {
+  return updateStatus.available && updateStatus.state !== "downloaded" && !isUpdateBusy();
+}
+
+function canInstallUpdate(): boolean {
+  return updateStatus.state === "downloaded";
 }
 
 function addressForPort(port: number): string {

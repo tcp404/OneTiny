@@ -27,6 +27,7 @@
 - 当前进程状态：`internal/runtime/`
 - 密码和凭据：`internal/security/`
 - 访问日志：`internal/accesslog/`
+- 自动更新共享逻辑：`internal/updater/`
 
 不要为了“看起来复用”提前抽包。只有当职责稳定、调用方真实存在、依赖方向清楚时，才新增内部包。
 
@@ -107,6 +108,7 @@ GUI 分三层：
 - `internal/gui/webassets/dist/` 不手改。
 - Wails service 方法只做 adapter 和 DTO 转换，核心规则放 `internal/app`。
 - GUI 对配置的修改必须走 `internal/app.Service`。
+- 自动更新共享逻辑放 `internal/updater/`。CLI 只处理命令行交互，GUI 只处理 Wails 调用和退出重启。
 
 ## 生成物和构建产物
 
@@ -126,6 +128,7 @@ GUI 分三层：
 改前端或 Wails 暴露面后，至少跑：
 
 ```bash
+rtk wails3 generate bindings -ts -b -names ./cmd/gui
 rtk npm run build --prefix frontend
 rtk go build ./cmd/gui
 ```

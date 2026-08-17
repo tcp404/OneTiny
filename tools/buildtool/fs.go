@@ -27,20 +27,61 @@ func CopyFile(src string, dst string) error {
 	}
 	defer input.Close()
 
+	info, err := input.Stat()
+	if err != nil {
+		return err
+	}
+	mode := info.Mode().Perm()
+
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 
-	output, err := os.Create(dst)
+	output, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".tmp-*")
 	if err != nil {
 		return err
 	}
-	defer output.Close()
-
-	if _, err := io.Copy(output, input); err != nil {
+	outputPath := output.Name()
+	keepOutput := false
+	defer func() {
+		if !keepOutput {
+			_ = os.Remove(outputPath)
+		}
+	}()
+	if err := output.Chmod(mode); err != nil {
+		_ = output.Close()
 		return err
 	}
-	return output.Close()
+	_, copyErr := io.Copy(output, input)
+	syncErr := output.Sync()
+	closeErr := output.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	if syncErr != nil {
+		return syncErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if err := os.Chmod(outputPath, mode); err != nil {
+		return err
+	}
+	if err := replaceFile(outputPath, dst); err != nil {
+		return err
+	}
+	keepOutput = true
+	return nil
+}
+
+func replaceFile(src string, dst string) error {
+	if err := os.Rename(src, dst); err != nil {
+		if removeErr := os.Remove(dst); removeErr != nil && !os.IsNotExist(removeErr) {
+			return err
+		}
+		return os.Rename(src, dst)
+	}
+	return nil
 }
 
 func VerifyPath(path string, kind string) error {

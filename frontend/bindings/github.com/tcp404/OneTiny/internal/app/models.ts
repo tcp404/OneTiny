@@ -234,5 +234,83 @@ export class StatusDTO {
     }
 }
 
+export class UpdateInstallDTO {
+    "started": boolean;
+    "logPath": string;
+    "message": string;
+
+    /** Creates a new UpdateInstallDTO instance. */
+    constructor($$source: Partial<UpdateInstallDTO> = {}) {
+        if (!("started" in $$source)) {
+            this["started"] = false;
+        }
+        if (!("logPath" in $$source)) {
+            this["logPath"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateInstallDTO instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateInstallDTO {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateInstallDTO($$parsedSource as Partial<UpdateInstallDTO>);
+    }
+}
+
+export class UpdateStatusDTO {
+    "currentVersion": string;
+    "latestVersion": string;
+    "available": boolean;
+    "state": string;
+    "message": string;
+    "releaseURL": string;
+    "downloadedPath": string;
+    "logPath": string;
+
+    /** Creates a new UpdateStatusDTO instance. */
+    constructor($$source: Partial<UpdateStatusDTO> = {}) {
+        if (!("currentVersion" in $$source)) {
+            this["currentVersion"] = "";
+        }
+        if (!("latestVersion" in $$source)) {
+            this["latestVersion"] = "";
+        }
+        if (!("available" in $$source)) {
+            this["available"] = false;
+        }
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+        if (!("releaseURL" in $$source)) {
+            this["releaseURL"] = "";
+        }
+        if (!("downloadedPath" in $$source)) {
+            this["downloadedPath"] = "";
+        }
+        if (!("logPath" in $$source)) {
+            this["logPath"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateStatusDTO instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateStatusDTO {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateStatusDTO($$parsedSource as Partial<UpdateStatusDTO>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = ConfigDTO.createFrom;

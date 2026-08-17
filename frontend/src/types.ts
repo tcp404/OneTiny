@@ -4,6 +4,8 @@ import type {
   LogEntryDTO,
   LogFilterDTO,
   StatusDTO,
+  UpdateInstallDTO,
+  UpdateStatusDTO,
 } from "../bindings/github.com/tcp404/OneTiny/internal/app/models.js";
 
 export type {
@@ -13,6 +15,8 @@ export type {
   LogEntryDTO,
   LogFilterDTO,
   StatusDTO,
+  UpdateInstallDTO,
+  UpdateStatusDTO,
 } from "../bindings/github.com/tcp404/OneTiny/internal/app/models.js";
 
 export type TabKey = "panel" | "security" | "logs" | "about";
@@ -31,4 +35,8 @@ export interface OneTinyService {
   ExportLogs(filter: LogFilterDTO): Promise<string>;
   OpenConfigDir(): Promise<void>;
   OpenShareAddress(): Promise<void>;
+  GetUpdateStatus(): Promise<UpdateStatusDTO>;
+  CheckUpdate(): Promise<UpdateStatusDTO>;
+  DownloadUpdate(): Promise<UpdateStatusDTO>;
+  InstallUpdate(): Promise<UpdateInstallDTO>;
 }

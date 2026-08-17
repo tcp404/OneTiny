@@ -12,12 +12,13 @@ vars:
   RUNTIME_ICON: internal/gui/assets/appicon.png
   WINDOWS_MANIFEST: internal/gui/assets/windows/wails.exe.manifest
   WINDOWS_INFO: internal/gui/assets/windows/info.json
-  MAC_INFO: internal/gui/assets/darwin/Info.plist
+  MAC_INFO_TEMPLATE: internal/gui/assets/darwin/Info.plist.tmpl
   FRONTEND_DIR: frontend
   DIST_DIR: dist
   GUI_MAIN: ./cmd/gui
   CLI_MAIN: ./cmd/cli
-  VERSION: '{{.VERSION | default "v0.6.0"}}'
+  VERSION:
+    sh: go run ./tools/buildtool current-version
   HOST_TARGET:
     sh: go run ./tools/buildtool metadata --kind cli --field target
 
@@ -264,7 +265,7 @@ tasks:
       - '{{.BUILD_TOOL}} ensure-dir --path "{{.MAC_APP}}/Contents/MacOS" --path "{{.MAC_APP}}/Contents/Resources"'
       - '{{.BUILD_TOOL}} copy-file --src "{{.GUI_BINARY_PATH}}" --dst "{{.MAC_APP}}/Contents/MacOS/{{.APP_NAME}}"'
       - '{{.BUILD_TOOL}} copy-file --src "{{.MAC_ICON}}" --dst "{{.MAC_APP}}/Contents/Resources/icons.icns"'
-      - '{{.BUILD_TOOL}} copy-file --src "{{.MAC_INFO}}" --dst "{{.MAC_APP}}/Contents/Info.plist"'
+      - '{{.BUILD_TOOL}} render-mac-info --src "{{.MAC_INFO_TEMPLATE}}" --dst "{{.MAC_APP}}/Contents/Info.plist" --version "{{.VERSION}}"'
       - codesign --force --deep --sign - "{{.MAC_APP}}"
       - '{{.BUILD_TOOL}} verify --path "{{.MAC_APP}}" --kind dir'
 

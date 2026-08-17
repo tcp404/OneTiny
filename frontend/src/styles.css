@@ -479,6 +479,53 @@ dd {
   overflow-wrap: anywhere;
 }
 
+.update-panel {
+  display: grid;
+  width: 100%;
+  gap: 12px;
+  border: 1px solid #d8dde3;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.update-panel.available {
+  border-color: #ead49a;
+  color: #654a00;
+  background: #fff8df;
+}
+
+.update-panel.current {
+  border-color: #54a37d;
+  color: #174f3c;
+  background: #edf9f2;
+}
+
+.update-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.update-copy span {
+  color: #68727d;
+  font-size: 13px;
+}
+
+.update-panel.available .update-copy span {
+  color: #654a00;
+}
+
+.update-panel.current .update-copy span {
+  color: #174f3c;
+}
+
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .credential-dialog {
   position: fixed;
   inset: 50% auto auto 50%;
@@ -622,7 +669,16 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .update-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .toolbar button {
+    width: 100%;
+  }
+
+  .update-actions button {
     width: 100%;
   }
 }

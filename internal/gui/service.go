@@ -2,13 +2,17 @@ package gui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/tcp404/OneTiny/internal/app"
 )
 
+const updateQuitDelay = 200 * time.Millisecond
+
 type Service struct {
-	service *app.Service
-	dialogs DialogAdapter
+	service       *app.Service
+	dialogs       DialogAdapter
+	quitForUpdate func()
 }
 
 func NewService(service *app.Service, dialogs DialogAdapter) *Service {
@@ -17,6 +21,10 @@ func NewService(service *app.Service, dialogs DialogAdapter) *Service {
 
 func (s *Service) setDialogAdapter(dialogs DialogAdapter) {
 	s.dialogs = dialogs
+}
+
+func (s *Service) setQuitForUpdate(quit func()) {
+	s.quitForUpdate = quit
 }
 
 func (s *Service) GetStatus() (app.StatusDTO, error) {
@@ -45,6 +53,32 @@ func (s *Service) GetLogs(filter app.LogFilterDTO) ([]app.LogEntryDTO, error) {
 
 func (s *Service) ClearLogs() error {
 	return s.service.ClearLogs()
+}
+
+func (s *Service) GetUpdateStatus() (app.UpdateStatusDTO, error) {
+	return s.service.GetUpdateStatus()
+}
+
+func (s *Service) CheckUpdate() (app.UpdateStatusDTO, error) {
+	return s.service.CheckUpdate()
+}
+
+func (s *Service) DownloadUpdate() (app.UpdateStatusDTO, error) {
+	return s.service.DownloadUpdate()
+}
+
+func (s *Service) InstallUpdate() (app.UpdateInstallDTO, error) {
+	result, err := s.service.StartUpdateInstall()
+	if err != nil {
+		return result, err
+	}
+	if s.quitForUpdate != nil {
+		go func() {
+			time.Sleep(updateQuitDelay)
+			s.quitForUpdate()
+		}()
+	}
+	return result, nil
 }
 
 func (s *Service) ChooseDirectory(current string) (string, error) {

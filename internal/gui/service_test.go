@@ -1,16 +1,21 @@
 package gui
 
 import (
+	"context"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/tcp404/OneTiny/internal/app"
 	"github.com/tcp404/OneTiny/internal/config"
 	"github.com/tcp404/OneTiny/internal/runtime"
 	"github.com/tcp404/OneTiny/internal/server"
+	"github.com/tcp404/OneTiny/internal/updater"
 )
 
 func TestServiceDialogMethodsAreNoopWithoutAdapter(t *testing.T) {
@@ -66,6 +71,152 @@ func TestOpenShareAddressOpensRunningAddress(t *testing.T) {
 	}
 }
 
+func TestUpdateMethodsForwardToAppService(t *testing.T) {
+	fake := &guiUpdateBackend{
+		checkResult:    guiAvailableUpdateCheck(),
+		downloadResult: updater.DownloadResult{ZipPath: filepath.Join(t.TempDir(), "OneTiny.zip")},
+		stageResult:    updater.StageResult{CandidatePath: filepath.Join(t.TempDir(), "OneTiny.app")},
+	}
+	service := NewService(newTestAppServiceWithDependencies(t, app.Dependencies{
+		Updater: fake,
+	}), &recordingDialogs{})
+
+	initial, err := service.GetUpdateStatus()
+	if err != nil {
+		t.Fatalf("GetUpdateStatus() error = %v", err)
+	}
+	if initial.State != "idle" {
+		t.Fatalf("initial State = %q, want idle", initial.State)
+	}
+
+	checked, err := service.CheckUpdate()
+	if err != nil {
+		t.Fatalf("CheckUpdate() error = %v", err)
+	}
+	if fake.checkCalls != 1 {
+		t.Fatalf("CheckLatest calls = %d, want 1", fake.checkCalls)
+	}
+	if checked.State != "available" || !checked.Available {
+		t.Fatalf("checked status = %+v, want available", checked)
+	}
+
+	downloaded, err := service.DownloadUpdate()
+	if err != nil {
+		t.Fatalf("DownloadUpdate() error = %v", err)
+	}
+	if fake.downloadCalls != 1 {
+		t.Fatalf("DownloadAndStage calls = %d, want 1", fake.downloadCalls)
+	}
+	if downloaded.State != "downloaded" || downloaded.DownloadedPath != fake.downloadResult.ZipPath {
+		t.Fatalf("downloaded status = %+v", downloaded)
+	}
+}
+
+func TestInstallUpdateWithoutDownloadedUpdateReturnsError(t *testing.T) {
+	service := NewService(newTestAppService(t), &recordingDialogs{})
+	quitCalled := make(chan struct{}, 1)
+	service.setQuitForUpdate(func() {
+		quitCalled <- struct{}{}
+	})
+
+	_, err := service.InstallUpdate()
+	if !errors.Is(err, app.ErrNoDownloadedStage) {
+		t.Fatalf("InstallUpdate() error = %v, want %v", err, app.ErrNoDownloadedStage)
+	}
+	select {
+	case <-quitCalled:
+		t.Fatal("quit callback was called after failed install")
+	case <-time.After(updateQuitDelay + 50*time.Millisecond):
+	}
+}
+
+func TestInstallUpdateStartsHelperAndTriggersQuitCallback(t *testing.T) {
+	bundlePath := filepath.Join(t.TempDir(), "OneTiny.app")
+	executablePath := filepath.Join(bundlePath, "Contents", "MacOS", "OneTiny")
+	if err := os.MkdirAll(filepath.Dir(executablePath), 0o755); err != nil {
+		t.Fatalf("MkdirAll executable dir: %v", err)
+	}
+	if err := os.WriteFile(executablePath, []byte("fake executable"), 0o755); err != nil {
+		t.Fatalf("WriteFile executable: %v", err)
+	}
+
+	fake := &guiUpdateBackend{
+		checkResult:    guiAvailableUpdateCheck(),
+		downloadResult: updater.DownloadResult{ZipPath: filepath.Join(t.TempDir(), "OneTiny.zip")},
+		stageResult:    updater.StageResult{CandidatePath: filepath.Join(t.TempDir(), "StagedOneTiny.app")},
+	}
+	var helperStarted atomic.Bool
+	service := NewService(newTestAppServiceWithDependencies(t, app.Dependencies{
+		Updater: fake,
+		CurrentExecutable: func() (string, error) {
+			return executablePath, nil
+		},
+		StartUpdateHelper: func(string, updater.InstallPlan) error {
+			helperStarted.Store(true)
+			return nil
+		},
+	}), &recordingDialogs{})
+	quitCalled := make(chan struct{}, 1)
+	service.setQuitForUpdate(func() {
+		quitCalled <- struct{}{}
+	})
+
+	if _, err := service.CheckUpdate(); err != nil {
+		t.Fatalf("CheckUpdate() error = %v", err)
+	}
+	if _, err := service.DownloadUpdate(); err != nil {
+		t.Fatalf("DownloadUpdate() error = %v", err)
+	}
+
+	result, err := service.InstallUpdate()
+	if err != nil {
+		t.Fatalf("InstallUpdate() error = %v", err)
+	}
+	if !result.Started {
+		t.Fatal("Started = false, want true")
+	}
+	if !helperStarted.Load() {
+		t.Fatal("update helper was not started")
+	}
+	select {
+	case <-quitCalled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("quit callback was not called")
+	}
+}
+
+type guiUpdateBackend struct {
+	checkResult    updater.CheckResult
+	checkCalls     int
+	downloadResult updater.DownloadResult
+	stageResult    updater.StageResult
+	downloadCalls  int
+}
+
+func (f *guiUpdateBackend) CheckLatest(context.Context, updater.CheckOptions) (updater.CheckResult, error) {
+	f.checkCalls++
+	return f.checkResult, nil
+}
+
+func (f *guiUpdateBackend) DownloadAndStage(context.Context, updater.CheckResult, string) (updater.DownloadResult, updater.StageResult, error) {
+	f.downloadCalls++
+	return f.downloadResult, f.stageResult, nil
+}
+
+func guiAvailableUpdateCheck() updater.CheckResult {
+	return updater.CheckResult{
+		Release: updater.Release{TagName: "v9.9.9"},
+		Availability: updater.Availability{
+			Current:   "v1.0.0",
+			Latest:    "v9.9.9",
+			Known:     true,
+			Available: true,
+		},
+		Channel:  updater.ChannelGUI,
+		Platform: updater.Platform{OS: "darwin", Arch: "arm64"},
+	}
+}
+
 type recordingDialogs struct {
 	openedURLs []string
 }
@@ -92,6 +243,11 @@ func (d *recordingDialogs) ConfirmQuitWhileRunning(func()) error {
 }
 
 func newTestAppService(t *testing.T) *app.Service {
+	t.Helper()
+	return newTestAppServiceWithDependencies(t, app.Dependencies{})
+}
+
+func newTestAppServiceWithDependencies(t *testing.T, overrides app.Dependencies) *app.Service {
 	t.Helper()
 	root := t.TempDir()
 	port := freeTCPPort(t)
@@ -127,11 +283,21 @@ scratch:
 		ScratchMaxItemSize:  cfg.ScratchMaxItemSize,
 		ScratchMaxItemBytes: 10 * 1024 * 1024,
 	}, runtime.Process{IP: "127.0.0.1", Pwd: root, SessionVal: "session"}))
-	return app.NewService(app.Dependencies{
+	deps := app.Dependencies{
 		ConfigStore: store,
 		Runtime:     rt,
 		Manager:     server.NewManager(rt),
-	})
+	}
+	if overrides.Updater != nil {
+		deps.Updater = overrides.Updater
+	}
+	if overrides.CurrentExecutable != nil {
+		deps.CurrentExecutable = overrides.CurrentExecutable
+	}
+	if overrides.StartUpdateHelper != nil {
+		deps.StartUpdateHelper = overrides.StartUpdateHelper
+	}
+	return app.NewService(deps)
 }
 
 func freeTCPPort(t *testing.T) int {

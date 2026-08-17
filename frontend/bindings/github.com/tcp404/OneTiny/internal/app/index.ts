@@ -7,5 +7,7 @@ export {
     CredentialPatchDTO,
     LogEntryDTO,
     LogFilterDTO,
-    StatusDTO
+    StatusDTO,
+    UpdateInstallDTO,
+    UpdateStatusDTO
 } from "./models.js";

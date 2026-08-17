@@ -19,6 +19,7 @@ OneTiny 是一个局域网文件共享工具，同时提供 CLI 和 GUI 两个�
 - `frontend/`：前端源码和 Wails 生成的 TypeScript bindings。`frontend/bindings/` 是生成物，不手改。
 - `internal/config/`：持久化配置的唯一可信源，负责 load、save、validate、patch。
 - `internal/runtime/`：从持久化配置和当前进程信息派生出的运行态。
+- `internal/updater/`：自动更新领域逻辑，负责 release 查询、版本比较、资产匹配、下载校验、解压、安装计划和 helper 替换流程。
 - `internal/app/`：GUI 可调用的应用服务层，负责跨配置、运行态、server、日志的用例编排。
 - `internal/gui/`：Wails adapter。负责窗口、托盘、dialog、前端服务暴露，不放核心业务规则。
 - `internal/server/`：HTTP server 生命周期、Gin engine 装配、路由和 middleware。
@@ -48,6 +49,7 @@ cmd/cli
   -> internal/config
   -> internal/runtime
   -> internal/server
+  -> internal/updater
   -> internal/app/validation
 
 cmd/gui
@@ -56,6 +58,7 @@ cmd/gui
   -> internal/app
   -> internal/gui
   -> internal/server
+  -> internal/updater
 
 internal/gui
   -> internal/app
@@ -65,6 +68,7 @@ internal/app
   -> internal/config
   -> internal/runtime
   -> internal/server
+  -> internal/updater
   -> internal/accesslog
   -> internal/security
 
@@ -93,6 +97,7 @@ internal/server/handler/*
 - `internal/config` 不依赖 `runtime`、`app`、`server`、`gui`、`cmd`。
 - `internal/runtime` 不依赖 `config`、`app`、`server`、`gui`、`cmd`。
 - `internal/server` 不读取配置文件，不创建 `config.Store`。
+- `internal/updater` 不读取或写入配置文件，不依赖 GUI、server 或 runtime。
 - `internal/gui` 不直接写配置文件；配置变更走 `internal/app.Service`。
 - `frontend` 不直接依赖 Go 实现细节，只通过生成的 Wails bindings 调用 GUI service。
 

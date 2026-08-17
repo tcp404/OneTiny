@@ -41,6 +41,8 @@ type CheckResult struct {
 	Release      Release
 	Asset        Asset
 	Availability Availability
+	Channel      Channel
+	Platform     Platform
 }
 
 var (

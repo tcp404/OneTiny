@@ -1,7 +1,8 @@
 set dotenv-load := true
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-version := env("VERSION", "v0.6.0")
+default_version := `go run ./tools/buildtool current-version`
+version := env("VERSION", default_version)
 target := env("TARGET", "")
 
 alias g := build-gui
@@ -17,15 +18,17 @@ help:
 
 
 
-[doc("Build GUI binary into its dist staging directory")]
+[doc("Build GUI binary and refresh build/bin")]
 [group("Build")]
 build-gui target=target:
     task build:gui TARGET="{{ target }}" VERSION="{{ version }}"
+    go run ./tools/buildtool copy-file --src "$(go run ./tools/buildtool metadata --target "{{ target }}" --kind gui --field binary-path)" --dst "build/bin/$(go run ./tools/buildtool metadata --target "{{ target }}" --kind gui --field binary-name)"
 
-[doc("Build CLI binary into its dist staging directory")]
+[doc("Build CLI binary and refresh build/bin")]
 [group("Build")]
 build-cli target=target:
     task build:cli TARGET="{{ target }}" VERSION="{{ version }}"
+    go run ./tools/buildtool copy-file --src "$(go run ./tools/buildtool metadata --target "{{ target }}" --kind cli --field binary-path)" --dst "build/bin/$(go run ./tools/buildtool metadata --target "{{ target }}" --kind cli --field binary-name)"
 
 
 

@@ -24,7 +24,7 @@ func isProcessRunning(pid int) (bool, error) {
 		return false, err
 	}
 	switch status {
-	case windows.WAIT_TIMEOUT:
+	case uint32(windows.WAIT_TIMEOUT):
 		return true, nil
 	case windows.WAIT_OBJECT_0:
 		return false, nil

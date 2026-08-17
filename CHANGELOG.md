@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/tcp404/OneTiny/compare/v0.12.0...v0.12.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* **updater:** cast WAIT_TIMEOUT for windows wait status compare ([#29](https://github.com/tcp404/OneTiny/issues/29)) ([2df422a](https://github.com/tcp404/OneTiny/commit/2df422a39cb6f968d1fdd6a1980871715ddaa939))
+
 ## [0.12.0](https://github.com/tcp404/OneTiny/compare/v0.11.0...v0.12.0) (2026-08-17)
 
 
